@@ -46,13 +46,22 @@ arm.set_mode(0)
 arm.set_state(state=0)
 
 number_of_loops = 1
-move_arm = True
+move_arm = False
+
+def reset_home_position():
+    # Set to the original home position angles
+    home_angles = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]  # Replace with correct values
+    arm.set_servo_angle(angle=home_angles, speed=50, wait=True)
+
+# Call this function whenever you need to reset
+reset_home_position()
 
 for i in range(number_of_loops):
-    print(f"doing time {i}")
-    arm.move_gohome(wait=True)
 
     arm.set_gripper_position(400, speed=1000, wait=True)
+    print(f"loop run {i} times")
+
+    arm.move_gohome(wait=True)
 
     if move_arm:
 
@@ -63,42 +72,9 @@ for i in range(number_of_loops):
 
         arm.set_position(x=400.0, y=200.0, z=400.0, roll=0.0, pitch=90.0, yaw=0.0, speed=50, wait=True)
 
+    arm.set_gripper_position(200, speed=1000, wait=True)
 
     time.sleep(5)
 
-
-
-#
-# speed = 50
-# arm.set_servo_angle(servo_id=1, angle=90, speed=speed, wait=True)
-# print(arm.get_servo_angle(), arm.get_servo_angle(is_radian=True))
-# arm.set_servo_angle(servo_id=2, angle=-60, speed=speed, wait=True)
-# print(arm.get_servo_angle(), arm.get_servo_angle(is_radian=True))
-# arm.set_servo_angle(servo_id=3, angle=-30, speed=speed, wait=True)
-# print(arm.get_servo_angle(), arm.get_servo_angle(is_radian=True))
-# arm.set_servo_angle(servo_iÏd=1, angle=0, speed=speed, wait=True)
-# print(arm.get_servo_angle(), arm.get_servo_angle(is_radian=True))
-# arm.set_servo_angle(servo_id=3, angle=0, speed=speed, wait=True)
-# print(arm.get_servo_angle(), arm.get_servo_angle(is_radian=True))
-# arm.set_servo_angle(servo_id=2, angle=0, speed=speed, wait=True)
-# print(arm.get_servo_angle(), arm.get_servo_angle(is_radian=True))
-#
-# arm.move_gohome(wait=True)
-#
-# speed = math.radians(50)
-# arm.set_servo_angle(servo_id=1, angle=math.radians(90), speed=speed, is_radian=True, wait=True)
-# print(arm.get_servo_angle(), arm.get_servo_angle(is_radian=True))
-# arm.set_servo_angle(servo_id=2, angle=math.radians(-60), speed=speed, is_radian=True, wait=True)
-# print(arm.get_servo_angle(), arm.get_servo_angle(is_radian=True))
-# arm.set_servo_angle(servo_id=3, angle=math.radians(-30), speed=speed, is_radian=True, wait=True)
-# print(arm.get_servo_angle(), arm.get_servo_angle(is_radian=True))
-# arm.set_servo_angle(servo_id=1, angle=0, speed=speed, is_radian=True, wait=True)
-# print(arm.get_servo_angle(), arm.get_servo_angle(is_radian=True))
-# arm.set_servo_angle(servo_id=3, angle=0, speed=speed, is_radian=True, wait=True)
-# print(arm.get_servo_angle(), arm.get_servo_angle(is_radian=True))
-# arm.set_servo_angle(servo_id=2, angle=0, speed=speed, is_radian=True, wait=True)
-# print(arm.get_servo_angle(), arm.get_servo_angle(is_radian=True))
-#
-#
-# arm.move_gohome(wait=True)
+print("process finished")
 arm.disconnect()

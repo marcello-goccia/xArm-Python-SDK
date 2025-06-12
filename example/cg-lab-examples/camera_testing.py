@@ -11,9 +11,6 @@ dev = openni2.Device.open_any()
 depth_stream = dev.create_depth_stream()
 depth_stream.start()
 
-# color_stream = dev.create_color_stream()
-# color_stream.start()
-
 cap = cv2.VideoCapture(0)
 
 while True:
@@ -30,13 +27,6 @@ while True:
     ret, color_img = cap.read()
     cv2.imshow("Color", color_img)
 
-    # color_data = color_frame.get_buffer_as_uint8()
-    # # Convert to OpenCV image
-    # color_img = np.frombuffer(color_data, dtype=np.uint8).reshape(480, 640, 3)
-    # color_img = cv2.cvtColor(color_img, cv2.COLOR_RGB2BGR)
-    # cv2.imshow("Color", color_img)
-
-
     # Example of getting real-world depth:
     # Example, enter pixel
     x = 320
@@ -48,6 +38,5 @@ while True:
         break
 
 depth_stream.stop()
-# color_stream.stop()
 cap.release()
 openni2.unload()

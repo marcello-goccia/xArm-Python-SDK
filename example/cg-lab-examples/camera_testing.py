@@ -1,8 +1,9 @@
 import cv2
 from primesense import openni2
 
+
 # Path to your OpenNI2 Redist folder:
-openni2.initialize(r"C:\Program Files\OpenNI2\Redist")  # <-- Adjust path
+openni2.initialize(r"C:\Program Files\Orbbec\OpenNI2\samples\bin")
 
 dev = openni2.Device.open_any()
 

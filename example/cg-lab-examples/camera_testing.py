@@ -27,6 +27,19 @@ while True:
 
     cv2.imshow("Color", color_img)
 
+    # Convert buffer to numpy array
+    depth_img = np.frombuffer(depth_data, dtype=np.uint16).reshape(480, 640)
+    # Normalize depth for display (to uint8)
+    depth_display = cv2.convertScaleAbs(depth_img, alpha=0.03)  # scaling factor depends on max range
+    cv2.imshow("Depth", depth_display)
+
+    # Example of getting real-world depth:
+    # Example, enter pixel
+    x = 320
+    y = 240
+    depth_value_mm = depth_img[y, x]  # value in millimeters
+    print(f"Depth at ({x},{y}) = {depth_value_mm} mm")
+
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 

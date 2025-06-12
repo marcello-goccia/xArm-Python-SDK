@@ -49,4 +49,5 @@ while True:
 
 depth_stream.stop()
 # color_stream.stop()
+cap.release()
 openni2.unload()

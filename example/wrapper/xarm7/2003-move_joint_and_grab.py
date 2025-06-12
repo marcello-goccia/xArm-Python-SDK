@@ -45,8 +45,8 @@ arm.motion_enable(enable=True)
 arm.set_mode(0)
 arm.set_state(state=0)
 
-number_of_loops = 1
-move_arm = False
+number_of_loops = 10
+move_arm = True
 
 def reset_home_position():
     # Set to the original home position angles
@@ -58,7 +58,7 @@ reset_home_position()
 
 for i in range(number_of_loops):
 
-    arm.set_gripper_position(400, speed=1000, wait=True)
+    ## arm.set_gripper_position(400, speed=1000, wait=True)
     print(f"loop run {i} times")
 
     arm.move_gohome(wait=True)
@@ -66,13 +66,13 @@ for i in range(number_of_loops):
     if move_arm:
 
         # # arm.set_position(x=300.0, y=200.0, z=400.0, roll=0.0, pitch=90.0, yaw=0.0, speed=50, wait=True)
-        arm.set_position(x=300.0, y=200.0, z=400.0, roll=0.0, pitch=90.0, yaw=0.0, speed=50, wait=True)
+        arm.set_position(x=300.0, y=200.0, z=400.0, roll=0.0, pitch=90.0, yaw=0.0, speed=300, wait=True)
 
         time.sleep(5)
 
-        arm.set_position(x=400.0, y=200.0, z=400.0, roll=0.0, pitch=90.0, yaw=0.0, speed=50, wait=True)
+        arm.set_position(x=400.0, y=200.0, z=400.0, roll=0.0, pitch=90.0, yaw=0.0, speed=300, wait=True)
 
-    arm.set_gripper_position(200, speed=1000, wait=True)
+    ## arm.set_gripper_position(200, speed=1000, wait=True)
 
     time.sleep(5)
 

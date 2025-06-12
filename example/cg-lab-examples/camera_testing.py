@@ -1,5 +1,6 @@
 import cv2
 from primesense import openni2
+import numpy as np
 
 
 # Path to your OpenNI2 Redist folder:
@@ -10,28 +11,31 @@ dev = openni2.Device.open_any()
 depth_stream = dev.create_depth_stream()
 depth_stream.start()
 
-color_stream = dev.create_color_stream()
-color_stream.start()
+# color_stream = dev.create_color_stream()
+# color_stream.start()
+
+cap = cv2.VideoCapture(0)
 
 while True:
     depth_frame = depth_stream.read_frame()
-    color_frame = color_stream.read_frame()
+    # color_frame = color_stream.read_frame()
 
     depth_data = depth_frame.get_buffer_as_uint16()
-    color_data = color_frame.get_buffer_as_uint8()
-
-    # Convert to OpenCV image
-    import numpy as np
-    color_img = np.frombuffer(color_data, dtype=np.uint8).reshape(480, 640, 3)
-    color_img = cv2.cvtColor(color_img, cv2.COLOR_RGB2BGR)
-
-    cv2.imshow("Color", color_img)
-
     # Convert buffer to numpy array
     depth_img = np.frombuffer(depth_data, dtype=np.uint16).reshape(480, 640)
     # Normalize depth for display (to uint8)
     depth_display = cv2.convertScaleAbs(depth_img, alpha=0.03)  # scaling factor depends on max range
     cv2.imshow("Depth", depth_display)
+
+    ret, color_img = cap.read()
+    cv2.imshow("Color", color_img)
+
+    # color_data = color_frame.get_buffer_as_uint8()
+    # # Convert to OpenCV image
+    # color_img = np.frombuffer(color_data, dtype=np.uint8).reshape(480, 640, 3)
+    # color_img = cv2.cvtColor(color_img, cv2.COLOR_RGB2BGR)
+    # cv2.imshow("Color", color_img)
+
 
     # Example of getting real-world depth:
     # Example, enter pixel
@@ -44,5 +48,5 @@ while True:
         break
 
 depth_stream.stop()
-color_stream.stop()
+# color_stream.stop()
 openni2.unload()

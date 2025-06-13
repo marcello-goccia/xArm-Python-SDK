@@ -56,7 +56,9 @@ try:
     depth_stream.start()
 
     print("Capturing rgb camera")
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(0, cv2.CAP_MSMF)
+    if not cap.isOpened():
+        raise IOError("Unable to open rgb camera (check index and that no other app is using it)")
 
     print("Move robot to starting point")
     robot_x, robot_y, robot_z = 300.0, 200.0, 400.0
@@ -77,12 +79,23 @@ def display_cameras(depth_img, color_img, display=False):
 
 
 def close_streams(depth_stream, cap, openni2, arm):
-    # Clean up
     print("Closing camera streams")
-    depth_stream.stop()
-    cap.release()
-    openni2.unload()
-    arm.disconnect()
+    try:
+        depth_stream.stop()
+    except Exception:
+        pass
+    try:
+        cap.release()
+    except Exception:
+        pass
+    try:
+        openni2.unload()
+    except Exception:
+        pass
+    try:
+        arm.disconnect()
+    except Exception:
+        pass
 
 
 def read_region_depth(u, v):
@@ -141,9 +154,6 @@ def initial_object_detection():
         print("Object detected, initializing tracker...")
     else:
         print("No object detected. Exiting.")
-        depth_stream.stop()
-        cap.release()
-        openni2.unload()
         return None
 
     # Initialize tracker
@@ -172,34 +182,36 @@ try:
     print("STARTING THE TRACKING LOOP")
 
     while True:
-        # Read frames
+        # 1) grab your frames first
         depth_frame = depth_stream.read_frame()
         depth_data = depth_frame.get_buffer_as_uint16()
         depth_img = np.frombuffer(depth_data, dtype=np.uint16).reshape(480, 640)
         ret, color_img = cap.read()
+        if not ret:
+            print("Color camera failed!")
+            break
 
-        # Display images
-
+        # 2) run your tracker
         success, bbox = tracker.update(color_img)
-
         if not success:
             print("Tracking failed!")
             break
-
-        x, y, w, h = [int(v) for v in bbox]\
-        # Take the center of the box.
+        x, y, w, h = [int(v) for v in bbox]
         u, v = x + w // 2, y + h // 2
 
-        # Read depth at target pixel
-        # depth_value_mm = depth_img[v, u]
-        depth_value_mm = read_region_depth(u, v)
+        # 3) draw & display immediately
+        cv2.rectangle(color_img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        depth_display = cv2.convertScaleAbs(depth_img, alpha=0.03)
+        cv2.imshow("Color", color_img)
+        cv2.imshow("Depth", depth_display)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
 
-        if depth_value_mm == 0:
-            print("Invalid depth reading, skipping frame")
+        # 4) now your depth & world coords
+        depth_val = read_region_depth(u, v)
+        if depth_val == 0:
             continue
-
-        # Compute real world coordinates
-        Zc = depth_value_mm
+        Zc = depth_val
         Xc = (u - cx) * Zc / fx
         Yc = (v - cy) * Zc / fy
         Xg, Yg, Zg = Xc, Yc, Zc - camera_offset_z
@@ -209,28 +221,22 @@ try:
         target_y = robot_y + Yg
         target_z = robot_z - (Zc - 400)
 
-        # Visualization (optional)
-        depth_display = cv2.convertScaleAbs(depth_img, alpha=0.03)
-        cv2.rectangle(color_img, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        cv2.imshow("Tracking", color_img)
-        cv2.imshow("Depth", depth_display)
+        # 5) debug-print raw robot pose
+        raw = arm.get_position(is_radian=False)
+        print("RAW get_position() →", raw)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-        # If robot position sometimes fails, retry 1-2 times:
-        retries = 3
-        for attempt in range(retries):
-            current_pose = arm.get_position(is_radian=False)
-            if current_pose and 'pos' in current_pose and current_pose['pos']:
-                current_x, current_y, current_z = current_pose['pos'][:3]
-                break
-            else:
-                time.sleep(0.1)
+        if isinstance(raw, dict) and 'pos' in raw:
+            cp = raw['pos']
+        elif isinstance(raw, tuple) and len(raw) == 2 and isinstance(raw[1], (list, tuple)):
+            # arm.get_position() → (rcode, [x,y,z,roll,pitch,yaw])
+            cp = raw[1]
         else:
-            print("Failed to read robot position after retries!")
+            print("Unrecognized pose format, skipping robot move")
             continue
 
+        current_x, current_y, current_z = cp[:3]
+
+        # 7) now you can re‐insert your movement code…
         dx = target_x - current_x
         dy = target_y - current_y
         dz = target_z - current_z
@@ -243,9 +249,12 @@ try:
             speed=50, wait=True
         )
 
+    # end loop
 
     close_streams(depth_stream, cap, openni2, arm)
+    cv2.destroyAllWindows()
 
 except Exception as e:
     print(f"An exception occurred: {e} - {get_debug_info()}")
     close_streams(depth_stream, cap, openni2, arm)
+    cv2.destroyAllWindows()

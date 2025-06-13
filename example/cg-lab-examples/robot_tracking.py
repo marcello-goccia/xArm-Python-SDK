@@ -188,80 +188,63 @@ try:
     print("STARTING THE TRACKING LOOP")
 
     while True:
-        # 1) grab your frames first
+        # 1) grab your frames
         depth_frame = depth_stream.read_frame()
         depth_data = depth_frame.get_buffer_as_uint16()
         depth_img = np.frombuffer(depth_data, dtype=np.uint16).reshape(480, 640)
 
         color_frame = color_stream.read_frame()
-        color_data = color_frame.get_buffer_as_triplet()  # or .get_buffer_as_rgb888()
-        frame_rgb = np.frombuffer(color_data, dtype=np.uint8).reshape((480, 640, 3))
-        # convert to BGR *before* passing into tracker
+        rgb_data = color_frame.get_buffer_as_triplet()
+        frame_rgb = np.frombuffer(rgb_data, dtype=np.uint8).reshape((480, 640, 3))
         frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
 
-        # 2) run your tracker
+        # 2) update tracker
         success, bbox = tracker.update(frame_bgr)
-        if success:
-            x, y, w, h = [int(v) for v in bbox]
-            u, v = x + w // 2, y + h // 2
-            cv2.rectangle(frame_bgr, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            cv2.imshow("Tracker", frame_bgr)
-        else:
-            print("Tracking failed – re‐detect or exit")
+        if not success:
+            print("Tracker lost, trying to re-detect…")
+            tracker = initial_object_detection()  # or your reinit logic
+            if tracker is None:
+                break
+            continue
 
-        #
-        # if not success:
-        #     print("Tracking failed!")
-        #     break
-        # x, y, w, h = [int(v) for v in bbox]
-        # u, v = x + w // 2, y + h // 2
-
-        # 3) draw & display immediately
+        # 3) draw your bounding box
+        x, y, w, h = map(int, bbox)
         cv2.rectangle(frame_bgr, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        u, v = x + w // 2, y + h // 2
+
+        # 4) display
         depth_display = cv2.convertScaleAbs(depth_img, alpha=0.03)
-        cv2.imshow("Color", frame_bgr)
+        cv2.imshow("Tracker", frame_bgr)
         cv2.imshow("Depth", depth_display)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-        # 4) now your depth & world coords
+        # 5) compute world coords & move robot
         depth_val = read_region_depth(u, v)
         if depth_val == 0:
             continue
+
         Zc = depth_val
         Xc = (u - cx) * Zc / fx
         Yc = (v - cy) * Zc / fy
-        Xg, Yg, Zg = Xc, Yc, Zc - camera_offset_z
-
-        # Compute target position
-        target_x = robot_x + Xg
-        target_y = robot_y + Yg
+        # adjust for gripper offset, etc...
+        target_x = robot_x + Xc
+        target_y = robot_y + Yc
         target_z = robot_z - (Zc - 400)
 
-        # 5) debug-print raw robot pose
+        # get current pose
         raw = arm.get_position(is_radian=False)
-        print("RAW get_position() →", raw)
-
-        if isinstance(raw, dict) and 'pos' in raw:
+        if isinstance(raw, dict):
             cp = raw['pos']
-        elif isinstance(raw, tuple) and len(raw) == 2 and isinstance(raw[1], (list, tuple)):
-            # arm.get_position() → (rcode, [x,y,z,roll,pitch,yaw])
-            cp = raw[1]
         else:
-            print("Unrecognized pose format, skipping robot move")
-            continue
+            cp = raw[1]
+        cx_, cy_, cz_ = cp[:3]
 
-        current_x, current_y, current_z = cp[:3]
-
-        # 7) now you can re‐insert your movement code…
-        dx = target_x - current_x
-        dy = target_y - current_y
-        dz = target_z - current_z
-
+        # interpolate & send new target
         arm.set_position(
-            x=current_x + dx * correction_factor,
-            y=current_y + dy * correction_factor,
-            z=current_z + dz * correction_factor,
+            x=cx_ + (target_x - cx_) * correction_factor,
+            y=cy_ + (target_y - cy_) * correction_factor,
+            z=cz_ + (target_z - cz_) * correction_factor,
             roll=0.0, pitch=90.0, yaw=0.0,
             speed=50, wait=True
         )

@@ -163,7 +163,7 @@ def initial_object_detection():
         return None
 
     # Initialize tracker
-    tracker = cv2.TrackerKCF_create()
+    tracker = cv2.TrackerCSRT_create()
     tracker.init(frame_bgr, bbox)
 
     print("Terminated initial object detection")
@@ -195,20 +195,31 @@ try:
 
         color_frame = color_stream.read_frame()
         color_data = color_frame.get_buffer_as_triplet()  # or .get_buffer_as_rgb888()
-        color_img = np.frombuffer(color_data, dtype=np.uint8).reshape((480, 640, 3))
+        frame_rgb = np.frombuffer(color_data, dtype=np.uint8).reshape((480, 640, 3))
+        # convert to BGR *before* passing into tracker
+        frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
 
         # 2) run your tracker
-        success, bbox = tracker.update(color_img)
-        if not success:
-            print("Tracking failed!")
-            break
-        x, y, w, h = [int(v) for v in bbox]
-        u, v = x + w // 2, y + h // 2
+        success, bbox = tracker.update(frame_bgr)
+        if success:
+            x, y, w, h = [int(v) for v in bbox]
+            u, v = x + w // 2, y + h // 2
+            cv2.rectangle(frame_bgr, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            cv2.imshow("Tracker", frame_bgr)
+        else:
+            print("Tracking failed – re‐detect or exit")
+
+        #
+        # if not success:
+        #     print("Tracking failed!")
+        #     break
+        # x, y, w, h = [int(v) for v in bbox]
+        # u, v = x + w // 2, y + h // 2
 
         # 3) draw & display immediately
-        cv2.rectangle(color_img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        cv2.rectangle(frame_bgr, (x, y), (x + w, y + h), (0, 255, 0), 2)
         depth_display = cv2.convertScaleAbs(depth_img, alpha=0.03)
-        cv2.imshow("Color", color_img)
+        cv2.imshow("Color", frame_bgr)
         cv2.imshow("Depth", depth_display)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break

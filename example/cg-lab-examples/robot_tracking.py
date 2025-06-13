@@ -68,6 +68,23 @@ try:
 except Exception as e:
     print(f"An exception occurred during camera initialisation: {e} - {get_debug_info}")
 
+
+def display_cameras(depth_img, color_img, display=False):
+    if display:
+        depth_display = cv2.convertScaleAbs(depth_img, alpha=0.03)  # scaling factor depends on max range
+        cv2.imshow("Depth", depth_display)
+        cv2.imshow("Color", color_img)
+
+
+def close_streams(depth_stream, cap, openni2, arm):
+    # Clean up
+    print("Closing camera streams")
+    depth_stream.stop()
+    cap.release()
+    openni2.unload()
+    arm.disconnect()
+
+
 def read_region_depth(u, v):
     window_size = 5  # 5x5 window
     half_window = window_size // 2
@@ -85,7 +102,9 @@ def read_region_depth(u, v):
         return 0
 
     # Use median depth (more stable)
-    return np.median(valid_depths)
+    median_depth = np.median(valid_depths)
+    print(f"median depth computed: {median_depth}")
+    return median_depth
 
 
 
@@ -125,7 +144,7 @@ def initial_object_detection():
         depth_stream.stop()
         cap.release()
         openni2.unload()
-        sys.exit(1)
+        return None
 
     # Initialize tracker
     tracker = cv2.TrackerKCF_create()
@@ -138,6 +157,11 @@ def initial_object_detection():
 #################### TRACKING LOOP ####################
 try:
     tracker = initial_object_detection()
+
+    if tracker is None:
+        close_streams(depth_stream, cap, openni2, arm)
+        sys.exit(1)
+
 
     fx, fy = 525, 525
     cx, cy = 319.5, 239.5
@@ -153,6 +177,8 @@ try:
         depth_data = depth_frame.get_buffer_as_uint16()
         depth_img = np.frombuffer(depth_data, dtype=np.uint16).reshape(480, 640)
         ret, color_img = cap.read()
+
+        # Display images
 
         success, bbox = tracker.update(color_img)
 
@@ -183,9 +209,27 @@ try:
         target_y = robot_y + Yg
         target_z = robot_z - (Zc - 400)
 
-        # Apply smooth correction
-        current_pose = arm.get_position(is_radian=False)
-        current_x, current_y, current_z = current_pose[:3]
+        # Visualization (optional)
+        depth_display = cv2.convertScaleAbs(depth_img, alpha=0.03)
+        cv2.rectangle(color_img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        cv2.imshow("Tracking", color_img)
+        cv2.imshow("Depth", depth_display)
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+        # If robot position sometimes fails, retry 1-2 times:
+        retries = 3
+        for attempt in range(retries):
+            current_pose = arm.get_position(is_radian=False)
+            if current_pose and 'pos' in current_pose and current_pose['pos']:
+                current_x, current_y, current_z = current_pose['pos'][:3]
+                break
+            else:
+                time.sleep(0.1)
+        else:
+            print("Failed to read robot position after retries!")
+            continue
 
         dx = target_x - current_x
         dy = target_y - current_y
@@ -199,20 +243,9 @@ try:
             speed=50, wait=True
         )
 
-        # Visualization (optional)
-        depth_display = cv2.convertScaleAbs(depth_img, alpha=0.03)
-        cv2.rectangle(color_img, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        cv2.imshow("Tracking", color_img)
-        cv2.imshow("Depth", depth_display)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-    # Clean up
-    depth_stream.stop()
-    cap.release()
-    openni2.unload()
-    arm.disconnect()
+    close_streams(depth_stream, cap, openni2, arm)
 
 except Exception as e:
     print(f"An exception occurred: {e} - {get_debug_info()}")
+    close_streams(depth_stream, cap, openni2, arm)

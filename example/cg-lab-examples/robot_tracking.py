@@ -49,26 +49,27 @@ print("ROBOT INIT - DONE")
 try:
     print("STARTING CAMERA INIT")
 
-    openni2.initialize(r"C:\Program Files\Orbbec\OpenNI2\samples\bin")
+    openni2.initialize(r"C:\Users\marcello\Downloads\OpenNI_2.3.0.86\Win64-Release\sdk\libs")
     dev = openni2.Device.open_any()
     print("Capturing depth camera")
     depth_stream = dev.create_depth_stream()
     depth_stream.start()
 
     print("Capturing rgb camera")
-    cap = cv2.VideoCapture(0, cv2.CAP_MSMF)
-    if not cap.isOpened():
-        raise IOError("Unable to open rgb camera (check index and that no other app is using it)")
+    # instead of VideoCapture
+    color_stream = dev.create_color_stream()
+    color_stream.start()
 
     print("Move robot to starting point")
     robot_x, robot_y, robot_z = 300.0, 200.0, 400.0
-    arm.set_position(x=robot_x, y=robot_y, z=robot_z, roll=0.0, pitch=90.0, yaw=0.0, speed=50, wait=True)
+    arm.set_position(x=robot_x, y=robot_y, z=robot_z, roll=0.0, pitch=90.0, yaw=0.0, speed=150, wait=True)
     time.sleep(2)
 
     print("CAMERA INIT - DONE")
 
 except Exception as e:
-    print(f"An exception occurred during camera initialisation: {e} - {get_debug_info}")
+    print(f"An exception occurred during camera initialisation: {e} - {get_debug_info()}")
+
 
 
 def display_cameras(depth_img, color_img, display=False):
@@ -78,14 +79,14 @@ def display_cameras(depth_img, color_img, display=False):
         cv2.imshow("Color", color_img)
 
 
-def close_streams(depth_stream, cap, openni2, arm):
+def close_streams(depth_stream, color_stream , openni2, arm):
     print("Closing camera streams")
     try:
         depth_stream.stop()
     except Exception:
         pass
     try:
-        cap.release()
+        color_stream .release()
     except Exception:
         pass
     try:
@@ -129,10 +130,15 @@ def initial_object_detection():
     depth_frame = depth_stream.read_frame()
     depth_data = depth_frame.get_buffer_as_uint16()
     depth_img = np.frombuffer(depth_data, dtype=np.uint16).reshape(480, 640)
-    ret, color_img = cap.read()
 
-    # Detect red object (basic color detection)
-    hsv = cv2.cvtColor(color_img, cv2.COLOR_BGR2HSV)
+
+    color_frame = color_stream.read_frame()
+    color_data = color_frame.get_buffer_as_triplet()  # raw RGB bytes
+    frame = np.frombuffer(color_data, dtype=np.uint8) \
+        .reshape((480, 640, 3))  # (H, W, 3)
+    # OpenCV expects BGR order, whereas OpenNI gives RGB:
+    frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+    hsv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV)
 
     lower_red1 = np.array([0, 100, 100])
     upper_red1 = np.array([10, 255, 255])
@@ -158,7 +164,7 @@ def initial_object_detection():
 
     # Initialize tracker
     tracker = cv2.TrackerKCF_create()
-    tracker.init(color_img, bbox)
+    tracker.init(frame_bgr, bbox)
 
     print("Terminated initial object detection")
 
@@ -169,7 +175,7 @@ try:
     tracker = initial_object_detection()
 
     if tracker is None:
-        close_streams(depth_stream, cap, openni2, arm)
+        close_streams(depth_stream, color_stream , openni2, arm)
         sys.exit(1)
 
 
@@ -186,10 +192,10 @@ try:
         depth_frame = depth_stream.read_frame()
         depth_data = depth_frame.get_buffer_as_uint16()
         depth_img = np.frombuffer(depth_data, dtype=np.uint16).reshape(480, 640)
-        ret, color_img = cap.read()
-        if not ret:
-            print("Color camera failed!")
-            break
+
+        color_frame = color_stream.read_frame()
+        color_data = color_frame.get_buffer_as_triplet()  # or .get_buffer_as_rgb888()
+        color_img = np.frombuffer(color_data, dtype=np.uint8).reshape((480, 640, 3))
 
         # 2) run your tracker
         success, bbox = tracker.update(color_img)
@@ -251,10 +257,10 @@ try:
 
     # end loop
 
-    close_streams(depth_stream, cap, openni2, arm)
+    close_streams(depth_stream, color_stream, openni2, arm)
     cv2.destroyAllWindows()
 
 except Exception as e:
     print(f"An exception occurred: {e} - {get_debug_info()}")
-    close_streams(depth_stream, cap, openni2, arm)
+    close_streams(depth_stream, color_stream, openni2, arm)
     cv2.destroyAllWindows()

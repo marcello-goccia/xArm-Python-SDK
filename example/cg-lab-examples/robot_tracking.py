@@ -45,12 +45,16 @@ reset_home_position()
 
 print("ROBOT INIT - DONE")
 
+depth_stream = None
+color_stream = None
+
 #################### CAMERA INIT ####################
 try:
     print("STARTING CAMERA INIT")
 
     openni2.initialize(r"C:\Users\marcello\Downloads\OpenNI_2.3.0.86\Win64-Release\sdk\libs")
     dev = openni2.Device.open_any()
+
     print("Capturing depth camera")
     depth_stream = dev.create_depth_stream()
     depth_stream.start()
@@ -59,6 +63,17 @@ try:
     # instead of VideoCapture
     color_stream = dev.create_color_stream()
     color_stream.start()
+
+    # —— then try registration ——
+    try:
+        dev.set_image_registration_mode(
+            openni2.IMAGE_REGISTRATION_DEPTH_TO_COLOR
+        )
+        dev.set_depth_color_sync_enabled(True)
+        print("✅ Hardware depth-to-color registration enabled")
+    except Exception as e:
+        print("⚠️ Registration not supported; proceeding without hardware alignment.")
+
 
     print("Move robot to starting point")
     robot_x, robot_y, robot_z = 300.0, 200.0, 400.0
@@ -99,14 +114,14 @@ def close_streams(depth_stream, color_stream , openni2, arm):
         pass
 
 
-def read_region_depth(u, v):
+def read_region_depth(depth_img, u, v):
     window_size = 5  # 5x5 window
     half_window = window_size // 2
 
     # Extract window around (u,v)
     depth_window = depth_img[
-                   max(0, v - half_window):min(480, v + half_window),
-                   max(0, u - half_window):min(640, u + half_window)
+                   max(0, v - half_window):min(depth_img.shape[0], v + half_window),
+                   max(0, u - half_window):min(depth_img.shape[1], u + half_window)
                    ]
 
     # Filter out zero depths
@@ -116,7 +131,7 @@ def read_region_depth(u, v):
         return 0
 
     # Use median depth (more stable)
-    median_depth = np.median(valid_depths)
+    median_depth = float(np.median(valid_depths))
     print(f"median depth computed: {median_depth}")
     return median_depth
 
@@ -225,7 +240,7 @@ try:
             break
 
         # 5) compute world coords & move robot
-        depth_val = read_region_depth(u, v)
+        depth_val = read_region_depth(depth_img, u, v)
         if depth_val == 0:
             continue
 

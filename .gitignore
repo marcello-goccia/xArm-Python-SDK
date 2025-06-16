@@ -12,3 +12,5 @@ bak-xarm/
 .vscode/
 .DS_Store
 example/wrapper/Archive.zip
+/example/cg-lab-examples/color_calib/
+/example/cg-lab-examples/depth_calib/

@@ -184,7 +184,6 @@ try:
      [  0.           0.           1.        ]]
     """
 
-
     fx, fy = 476.23448362, 478.26996422
     cx, cy = 318.76919937, 230.03305065
     camera_offset_z = 10  # mm offset from gripper

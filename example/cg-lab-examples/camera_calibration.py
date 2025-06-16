@@ -13,7 +13,7 @@ objp[:,:2] = np.mgrid[0:9,0:6].T.reshape(-1,2)  # adjust to your board
 objpoints = []  # 3d points in real world space
 imgpoints = []  # 2d points in image plane.
 
-images = glob.glob('calib_images/*.png')
+images = glob.glob('color_calib/*.png')
 for fname in images:
     img = cv2.imread(fname)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)

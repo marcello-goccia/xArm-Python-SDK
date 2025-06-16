@@ -178,10 +178,16 @@ try:
         close_streams(depth_stream, color_stream , openni2, arm)
         sys.exit(1)
 
+    """
+    [[476.23448362   0.         318.76919937]
+     [  0.         478.26996422 230.03305065]
+     [  0.           0.           1.        ]]
+    """
 
-    fx, fy = 525, 525
-    cx, cy = 319.5, 239.5
-    camera_offset_z = 100  # mm offset from gripper
+
+    fx, fy = 476.23448362, 478.26996422
+    cx, cy = 318.76919937, 230.03305065
+    camera_offset_z = 10  # mm offset from gripper
 
     correction_factor = 0.5  # smooth factor for movement
 
@@ -215,7 +221,7 @@ try:
         # 4) display
         depth_display = cv2.convertScaleAbs(depth_img, alpha=0.03)
         cv2.imshow("Tracker", frame_bgr)
-        cv2.imshow("Depth", depth_display)
+        #cv2.imshow("Depth", depth_display)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 

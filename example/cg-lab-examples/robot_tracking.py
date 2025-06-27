@@ -7,6 +7,19 @@ import sys
 import time
 from log_code import get_debug_info
 
+# DOCKER UFACTORY SIMULATOR
+# from https://forum.ufactory.cc/t/ufactory-studio-simulation/3719
+# TO CREATE THE CONTAINER
+# docker run -it --name uf_software -p 18333:18333 -p 502:502 -p 503:503 -p 504:504 -p 30000:30000 -p 30001:30001 -p 30002:30002 -p 30003:30003 danielwang123321/uf-ubuntu-docker
+# TO RUN EXISTING CONTAINER
+# docker exec -it uf_software -p 18333:18333 -p 502:502 -p 503:503 -p 504:504 -p 30000:30000 -p 30001:30001 -p 30002:30002 -p 30003:30003 danielwang123321/uf-ubuntu-docker
+# THEN
+# /xarm_scripts/xarm_start.sh 7 7
+# Run a web browser and input 127.0.0.1:18333 or locathost:18333
+# OR run ufactory aplication and input 127.0.0.1:18333 or locathost:18333
+
+is_camera_available = False
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 
 from xarm.wrapper import XArmAPI
@@ -49,47 +62,47 @@ print("ROBOT INIT - DONE")
 depth_stream = None
 color_stream = None
 
-#################### CAMERA INIT ####################
-try:
-    print("STARTING CAMERA INIT")
-
-    openni2.initialize(r"C:\Users\marcello\Downloads\OpenNI_2.3.0.86\Win64-Release\sdk\libs")
-    dev = openni2.Device.open_any()
-
-    print("Capturing depth camera")
-    depth_stream = dev.create_depth_stream()
-    depth_stream.start()
-
-    print("Capturing rgb camera")
-    # instead of VideoCapture
-    color_stream = dev.create_color_stream()
-    color_stream.start()
-
-    T_g2c = np.loadtxt('gripper2camera.txt')
-
-    # —— then try registration ——
+if is_camera_available:
+    #################### CAMERA INIT ####################
     try:
-        dev.set_image_registration_mode(
-            openni2.IMAGE_REGISTRATION_DEPTH_TO_COLOR
-        )
-        dev.set_depth_color_sync_enabled(True)
-        print("✅ Hardware depth-to-color registration enabled")
+        print("STARTING CAMERA INIT")
+
+        openni2.initialize(r"C:\Users\marcello\Downloads\OpenNI_2.3.0.86\Win64-Release\sdk\libs")
+        dev = openni2.Device.open_any()
+
+        print("Capturing depth camera")
+        depth_stream = dev.create_depth_stream()
+        depth_stream.start()
+
+        print("Capturing rgb camera")
+        # instead of VideoCapture
+        color_stream = dev.create_color_stream()
+        color_stream.start()
+
+        # —— then try registration ——
+        try:
+            dev.set_image_registration_mode(
+                openni2.IMAGE_REGISTRATION_DEPTH_TO_COLOR
+            )
+            dev.set_depth_color_sync_enabled(True)
+            print("✅ Hardware depth-to-color registration enabled")
+        except Exception as e:
+            print("⚠️ Registration not supported; proceeding without hardware alignment.")
+
+        print("CAMERA INIT - DONE")
+
     except Exception as e:
-        print("⚠️ Registration not supported; proceeding without hardware alignment.")
+        print(f"An exception occurred during camera initialisation: {e} - {get_debug_info()}")
 
 
-    print("Move robot to starting point")
-    robot_x, robot_y, robot_z = 266.0, 0.0, 303.0
-    roll, pitch, yaw = -126,-88, -55
-    # arm.set_position(x=robot_x, y=robot_y, z=robot_z, roll=0.0, pitch=90.0, yaw=0.0, speed=150, wait=True)
-    arm.set_position(x=robot_x, y=robot_y, z=robot_z, roll=roll, pitch=pitch, yaw=yaw, speed=100, wait=True)
-    time.sleep(2)
+print("Move robot to starting point")
+robot_x, robot_y, robot_z = 266.0, 0.0, 303.0
+roll, pitch, yaw = -126,-88, -55
+# arm.set_position(x=robot_x, y=robot_y, z=robot_z, roll=0.0, pitch=90.0, yaw=0.0, speed=150, wait=True)
+arm.set_position(x=robot_x, y=robot_y, z=robot_z, roll=roll, pitch=pitch, yaw=yaw, speed=100, wait=True)
+time.sleep(2)
 
-    print("CAMERA INIT - DONE")
-
-except Exception as e:
-    print(f"An exception occurred during camera initialisation: {e} - {get_debug_info()}")
-
+T_g2c = np.loadtxt('gripper2camera.txt')
 
 
 def display_cameras(depth_img, color_img, display=False):
@@ -139,7 +152,6 @@ def read_region_depth(depth_img, u, v):
     median_depth = float(np.median(valid_depths))
     # print(f"median depth computed: {median_depth}")
     return median_depth
-
 
 
 def pose_to_transform(x, y, z, roll, pitch, yaw):
@@ -215,11 +227,12 @@ def initial_object_detection():
 
 #################### TRACKING LOOP ####################
 try:
-    tracker = initial_object_detection()
+    if is_camera_available:
+        tracker = initial_object_detection()
 
-    if tracker is None:
-        close_streams(depth_stream, color_stream , openni2, arm)
-        sys.exit(1)
+        if tracker is None:
+            close_streams(depth_stream, color_stream , openni2, arm)
+            sys.exit(1)
 
     """
     [[476.23448362   0.         318.76919937]
@@ -237,51 +250,56 @@ try:
 
     while True:
         # 1) grab your frames
-        depth_frame = depth_stream.read_frame()
-        depth_data = depth_frame.get_buffer_as_uint16()
-        depth_img = np.frombuffer(depth_data, dtype=np.uint16).reshape(480, 640)
+        if is_camera_available:
+            depth_frame = depth_stream.read_frame()
+            depth_data = depth_frame.get_buffer_as_uint16()
+            depth_img = np.frombuffer(depth_data, dtype=np.uint16).reshape(480, 640)
 
-        color_frame = color_stream.read_frame()
-        rgb_data = color_frame.get_buffer_as_triplet()
-        frame_rgb = np.frombuffer(rgb_data, dtype=np.uint8).reshape((480, 640, 3))
-        frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+            color_frame = color_stream.read_frame()
+            rgb_data = color_frame.get_buffer_as_triplet()
+            frame_rgb = np.frombuffer(rgb_data, dtype=np.uint8).reshape((480, 640, 3))
+            frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
 
-        #print("HERE 1")
+            #print("HERE 1")
 
-        # 2) update tracker
-        success, bbox = tracker.update(frame_bgr)
-        if not success:
-            print("Tracker lost, trying to re-detect…")
-            tracker = initial_object_detection()  # or your reinit logic
-            if tracker is None:
+            # 2) update tracker
+            success, bbox = tracker.update(frame_bgr)
+            if not success:
+                print("Tracker lost, trying to re-detect…")
+                tracker = initial_object_detection()  # or your reinit logic
+                if tracker is None:
+                    break
+                continue
+
+            #print("HERE 2 and ", success)
+
+            # 3) draw your bounding box
+            x, y, w, h = map(int, bbox)
+            cv2.rectangle(frame_bgr, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            u, v = x + w // 2, y + h // 2
+
+            #print("HERE 3 and ", u, v)
+
+            # 4) display
+            depth_display = cv2.convertScaleAbs(depth_img, alpha=0.03)
+            cv2.imshow("Tracker", frame_bgr)
+            #cv2.imshow("Depth", depth_display)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
-            continue
 
-        #print("HERE 2 and ", success)
+            #print("HERE 4 and ", depth_display)
 
-        # 3) draw your bounding box
-        x, y, w, h = map(int, bbox)
-        cv2.rectangle(frame_bgr, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        u, v = x + w // 2, y + h // 2
+            # 5) compute world coords & move robot
+            depth_val = read_region_depth(depth_img, u, v)
+            if depth_val == 0:
+                continue
 
-        #print("HERE 3 and ", u, v)
+            # print("HERE 5 and ", depth_val)
 
-        # 4) display
-        depth_display = cv2.convertScaleAbs(depth_img, alpha=0.03)
-        cv2.imshow("Tracker", frame_bgr)
-        #cv2.imshow("Depth", depth_display)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-        #print("HERE 4 and ", depth_display)
-
-        # 5) compute world coords & move robot
-        depth_val = read_region_depth(depth_img, u, v)
-        if depth_val == 0:
-            continue
-
-        # print("HERE 5 and ", depth_val)
-
+        else:
+            u = -14
+            v = -80
+            depth_val = 0
 
         Xc = (u - cx) * depth_val  / fx
         Yc = (v - cy) * depth_val  / fy
@@ -313,20 +331,29 @@ try:
         ).dot(p_cam_target.reshape(4, 1))
         xt, yt, zt = T_b2g_target[0:3, 0:1].flatten()
 
-        # adjust for gripper offset, etc...
-        xb, yb, zb, _ = p_base
+        normal_use = False
+        if normal_use:
+            ### NORMAL USE
+            arm.set_position(
+                    x = xb, y = yb, z = zb,
+                    roll = ori[0], pitch = ori[1], yaw = ori[2],
+                    speed = 50, wait = True)
+        else:
+            ## USE TESTING
+            # adjust for gripper offset, etc...
+            xb, yb, zb, _ = p_base
 
-        # uncomment top make the arm move.
-        # arm.set_position(
-        #         x = xb, y = yb, z = zb,
-        #         roll = ori[0], pitch = ori[1], yaw = ori[2],
-        #         speed = 50, wait = True)
-        arm.set_position(
-                x = Yc, y = Xc, z = robot_z,
+            # uncomment top make the arm move.
+            arm.set_position(
+                x=Yc, y=Xc, z=robot_z,
                 # x = robot_x + Xc, y = robot_y + Yc, z = robot_z + Zc - 600,
                 # roll = -126, pitch = -88, yaw = -55,
-                speed = 50, wait = True)
-        # robot_x, robot_y, robot_z = 266.0, 0.0, 303.0
+                speed=50, wait=True)
+
+        # Typical values:
+        # x from negative to positive
+        # y from negative to positive
+        # z always positive
 
     # end loop
 

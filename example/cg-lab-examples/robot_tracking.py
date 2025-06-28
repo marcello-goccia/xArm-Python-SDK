@@ -56,6 +56,7 @@ def reset_home_position():
 
 # Call this function whenever you need to reset
 reset_home_position()
+time.sleep(1)
 
 print("ROBOT INIT - DONE")
 
@@ -98,9 +99,30 @@ if is_camera_available:
 print("Move robot to starting point")
 robot_x, robot_y, robot_z = 266.0, 0.0, 303.0
 roll, pitch, yaw = -126,-88, -55
-# arm.set_position(x=robot_x, y=robot_y, z=robot_z, roll=0.0, pitch=90.0, yaw=0.0, speed=150, wait=True)
 arm.set_position(x=robot_x, y=robot_y, z=robot_z, roll=roll, pitch=pitch, yaw=yaw, speed=100, wait=True)
 time.sleep(2)
+# arm.set_position(x=300, y=-14, z=-80, speed=100, wait=True)
+#
+#
+# camera_x = -200
+# camera_y = 100
+# camera_depth = 500
+# arm.set_position(x=camera_depth, y=-camera_x, z=camera_y + offset_camera_height, speed=100, wait=True)  ## x is depth, y is base x, z is base y
+# time.sleep(3)
+
+# # arm.set_position(x=300, y=-14, z=-80, speed=100, wait=True)
+
+# import random as rndm
+# while True:
+#     camera_x = rndm.randint(-200, 200)
+#     camera_y = rndm.randint(-200, 200)
+#     camera_depth = 500
+#     print(f"camera_x: {camera_x}, camera_y: {camera_y}")
+#     arm.set_position(x=camera_depth, y=-camera_x, z=camera_y + offset_camera_height, roll=90, pitch=0, yaw=90,
+#                      speed=100, wait=True)  ## x is depth, y is base x, z is base y
+#     time.sleep(3)
+
+
 
 T_g2c = np.loadtxt('gripper2camera.txt')
 
@@ -297,9 +319,11 @@ try:
             # print("HERE 5 and ", depth_val)
 
         else:
-            u = -14
-            v = -80
-            depth_val = 0
+            import random as rndm
+            u = rndm.randint(-200, 200)  # u should be CAMERA x (same sign y robot base green)
+            v = rndm.randint(-200, 200)  # v should be CAMERA y vertical (same sign z robot base blue)
+            depth_val = rndm.randint(100, 700)  # depth_val should be CAMERA depth (same sign x robot base red)
+            time.sleep(2)
 
         Xc = (u - cx) * depth_val  / fx
         Yc = (v - cy) * depth_val  / fy
@@ -341,19 +365,24 @@ try:
         else:
             ## USE TESTING
             # adjust for gripper offset, etc...
+            _, pos_current = arm.get_position()
+
+            xcurr, ycurr, zcurr, yawcurr, pitcurr, rollcurr = pos_current
+
             xb, yb, zb, _ = p_base
 
-            # uncomment top make the arm move.
-            arm.set_position(
-                x=Yc, y=Xc, z=robot_z,
-                # x = robot_x + Xc, y = robot_y + Yc, z = robot_z + Zc - 600,
-                # roll = -126, pitch = -88, yaw = -55,
-                speed=50, wait=True)
+            ## where to go:
+            x_new = Zc + xcurr
+            y_new = Yc + ycurr
+            z_new = Xc + zcurr
 
-        # Typical values:
-        # x from negative to positive
-        # y from negative to positive
-        # z always positive
+            camera_x = u  #-18
+            camera_y = v  #-80
+            camera_depth = 200  # depth_val
+            offset_camera_height = 300
+            offset_camera_depth = 200
+            arm.set_position(x=camera_depth + offset_camera_depth, y=-camera_x, z=camera_y + offset_camera_height, speed=100,
+                             wait=True)  ## x is depth, y is base x, z is base y
 
     # end loop
 

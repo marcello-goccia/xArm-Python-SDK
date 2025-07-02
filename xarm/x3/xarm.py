@@ -68,7 +68,15 @@ class XArm(Gripper, Servo, Record, RobotIQ, BaseBoard, Track, FtSensor, ModbusTc
     def _is_out_of_joint_range(self, angle, i):
         if not self._check_joint_limit or self._stream_type != 'socket' or not self._enable_report or angle == math.inf:
             return False
-        device_type = int('{}1305'.format(self.axis)) if self.sn and int(self.sn[2:6]) >= 1305 and int(self.sn[2:6]) < 8500 else self.device_type
+        #device_type = int('{}1305'.format(self.axis)) if self.sn and int(self.sn[2:6]) >= 1305 and int(self.sn[2:6]) < 8500 else self.device_type
+        if self.sn:
+            try:
+                if int(self.sn[2:6]) >= 1305 and int(self.sn[2:6]) < 8500:
+                    device_type = int('{}1305'.format(self.axis))
+            except ValueError:
+                device_type = self.device_type
+        else:
+            device_type = self.device_type
         joint_limit = XCONF.Robot.JOINT_LIMITS.get(self.axis).get(device_type, [])
         if i < len(joint_limit):
             angle_range = joint_limit[i]

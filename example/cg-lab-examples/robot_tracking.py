@@ -101,6 +101,13 @@ robot_x, robot_y, robot_z = 266.0, 0.0, 303.0
 roll, pitch, yaw = -126,-88, -55
 arm.set_position(x=robot_x, y=robot_y, z=robot_z, roll=roll, pitch=pitch, yaw=yaw, speed=100, wait=True)
 time.sleep(2)
+
+print(f"get_position: {arm.get_position()}")
+
+print(f"get_servo_angle: {arm.get_servo_angle()}")
+
+T_g2c = np.loadtxt('gripper2camera.txt')
+
 # arm.set_position(x=300, y=-14, z=-80, speed=100, wait=True)
 #
 #
@@ -121,10 +128,6 @@ time.sleep(2)
 #     arm.set_position(x=camera_depth, y=-camera_x, z=camera_y + offset_camera_height, roll=90, pitch=0, yaw=90,
 #                      speed=100, wait=True)  ## x is depth, y is base x, z is base y
 #     time.sleep(3)
-
-
-
-T_g2c = np.loadtxt('gripper2camera.txt')
 
 
 def display_cameras(depth_img, color_img, display=False):

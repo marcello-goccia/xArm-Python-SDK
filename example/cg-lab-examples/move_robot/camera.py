@@ -83,6 +83,10 @@ class Camera:
             openni2.unload()
         except Exception:
             pass
+        try:
+            cv2.destroyAllWindows()
+        except Exception:
+            pass
 
     def read_region_depth(self, u, v):
         window_size = 5  # 5x5 window
@@ -109,6 +113,10 @@ class Camera:
         depth_frame = self.depth_stream.read_frame()
         depth_data = depth_frame.get_buffer_as_uint16()
         self.depth_img = np.frombuffer(depth_data, dtype=np.uint16).reshape(480, 640)
+
+    def normalise_depth_for_display(self):
+        # normalize to 0–255 for display/save
+        self.depth_8bit = cv2.normalize(self.depth_img, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
 
     def read_color_frame(self):
         color_frame = self.color_stream.read_frame()

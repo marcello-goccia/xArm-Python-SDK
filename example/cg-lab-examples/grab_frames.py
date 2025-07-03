@@ -4,7 +4,7 @@ import numpy as np
 from primesense import openni2
 
 # where to dump your images
-OUTPUT_DIR = "astra_calib"
+OUTPUT_DIR = "pose_camera_pictures"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # init OpenNI2 & device
@@ -14,6 +14,7 @@ dev = openni2.Device.open_any()
 # start color + depth
 color_stream = dev.create_color_stream()
 color_stream.start()
+
 depth_stream = dev.create_depth_stream()
 depth_stream.start()
 

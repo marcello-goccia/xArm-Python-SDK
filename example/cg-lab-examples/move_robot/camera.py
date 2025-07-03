@@ -177,6 +177,11 @@ class Camera:
         self.camera_offset_z = 10  # mm offset from gripper
         self.correction_factor = 0.5  # smooth factor for movement
 
+        self.camera_matrix = np.array([[self.fx,   0,        self.cx],
+                                       [0,         self.fy,  self.cy],
+                                       [0,         0,        1]])
+        self.dist_coeffs = np.zeros(5)  # values obtained from calibration.
+
     def get_camera_position_world_coords(self, u, v, depth_val, debug=False):
         Xc = (u - self.cx) * depth_val / self.fx
         Yc = (v - self.cy) * depth_val / self.fy

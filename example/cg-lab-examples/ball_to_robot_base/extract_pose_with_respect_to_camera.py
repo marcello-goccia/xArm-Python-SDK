@@ -56,6 +56,7 @@ try:
         cv2.imshow("Depth", camera.depth_8bit)
 
         save_now = False
+        key = cv2.waitKey(1) & 0xFF
 
         if MODE == "timer":
             if time.time() - last_save >= 5.0:
@@ -63,11 +64,8 @@ try:
                 last_save = time.time()
 
         elif MODE == "spacebar":
-            key = cv2.waitKey(1) & 0xFF
             if key == ord(' '):  # spacebar pressed
                 save_now = True
-            elif key == ord('q'):
-                break
         else:
             print("Invalid MODE selected. Please choose 'timer' or 'spacebar'.")
             break
@@ -80,8 +78,8 @@ try:
             print(f"[{counter:03d}] saved → {fn_c}, {fn_d}")
             counter += 1
 
-        # quit on ‘q’
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        # check for quit key
+        if key == ord('q'):
             break
 
 finally:

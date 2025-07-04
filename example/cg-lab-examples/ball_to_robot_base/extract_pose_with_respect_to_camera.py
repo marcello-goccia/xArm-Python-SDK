@@ -110,13 +110,14 @@ def main():
     finally:
         camera.close_streams()
 
-def draw_conerrs_on_the_image(img, corners, ret):
+def draw_corners_on_the_image(img, corners, ret):
     if ret:
         # Optional: disegna i corners sull’immagine
         img_corners = cv2.drawChessboardCorners(img, checkerboard_size, corners, ret)
         cv2.imshow("Chessboard", img_corners)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
+
 
 def retrieve_rotations_translations_camera(gray, corners, print_on_screen=False):
 

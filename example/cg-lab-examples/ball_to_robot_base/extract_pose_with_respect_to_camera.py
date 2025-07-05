@@ -35,6 +35,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 checkerboard_size = (9, 6)  # 6×6 corners interni
 square_size = 20  # mm (dimensione casella)
 is_camera_available = False
+storing_poses_filename = "poses.txt"
 
 if not is_camera_available:
     cv2.namedWindow("Color", cv2.WINDOW_NORMAL)
@@ -78,7 +79,7 @@ def main():
                 # Find th dots of the checkboard in the pictures
                 ret, corners = cv2.findChessboardCorners(gray, checkerboard_size, None)
                 if ret:
-                    acquire_robot_camera_positions(gray, corners)
+                    acquire_robot_and_camera_positions(gray, corners, counter)
                 else:
                     print("Scacchiera non rilevata nella foto.")
 
@@ -131,6 +132,8 @@ def retrieve_rotations_translations_camera(gray, corners, print_on_screen=False)
 
     # Calcola la posa della scacchiera rispetto alla telecamera
     retval, rvec, tvec = cv2.solvePnP(objp, corners_refined, camera.camera_matrix, camera.dist_coeffs)
+    r_flatten = rvec.flatten()
+    t_flatten = tvec.flatten()
 
     # rvec e tvec rappresentano la posa della scacchiera rispetto alla telecamera
 
@@ -138,19 +141,27 @@ def retrieve_rotations_translations_camera(gray, corners, print_on_screen=False)
     R, _ = cv2.Rodrigues(rvec)
     T_cam2checkerboard = np.eye(4)
     T_cam2checkerboard[:3, :3] = R
-    T_cam2checkerboard[:3, 3] = tvec.flatten()
+    T_cam2checkerboard[:3, 3] = t_flatten
     if print_on_screen:
-        print("Rotazione (rvec):", rvec.flatten())
-        print("Traslazione (tvec):", tvec.flatten())
+        print("Rotazione (rvec):", r_flatten)
+        print("Traslazione (tvec):", t_flatten)
         print("Matrice omogenea telecamera→scacchiera:\n", T_cam2checkerboard)
+    return r_flatten, t_flatten
 
 
-def acquire_robot_camera_positions(gray, corners):
-    retrieve_rotations_translations_camera(gray, corners)
+def acquire_robot_and_camera_positions(gray, corners, counter=0, print_on_screen=False):
+    r_flatten, t_flatten = retrieve_rotations_translations_camera(gray, corners)
     _, pos_current = robot.get_robot_position()
-    print("current position:", pos_current)
     _, servo_current = robot.get_robot_servo_angles()
-    print("current servo", servo_current)
+    #####
+
+    save_pose_to_file(storing_poses_filename, pos_current, servo_current, r_flatten, t_flatten, counter)
+
+    # STORE TO FILE
+    if print_on_screen:
+        print("current position:", pos_current)
+        print("current servo", servo_current)
+    return pos_current
 
 
 def save_images(counter, gray):
@@ -166,6 +177,15 @@ def save_images(counter, gray):
     print(f"[{counter:03d}] saved → {fn_c}, {fn_d}")
     counter += 1
     return counter
+
+
+def save_pose_to_file(filename, robot_pos, robot_orient, camera_rvec, camera_tvec, pose_idx):
+    with open(filename, 'a') as f:
+        f.write(f"# Pose {pose_idx}\n")
+        f.write("robot_pos: " + " ".join([str(x) for x in robot_pos]) + "\n")
+        f.write("robot_orient: " + " ".join([str(x) for x in robot_orient]) + "\n")
+        f.write("camera_rvec: " + " ".join([str(x) for x in camera_rvec]) + "\n")
+        f.write("camera_tvec: " + " ".join([str(x) for x in camera_tvec]) + "\n\n")
 
 
 if __name__ == "__main__":

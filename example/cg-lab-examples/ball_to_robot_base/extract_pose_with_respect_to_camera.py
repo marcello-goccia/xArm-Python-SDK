@@ -182,8 +182,8 @@ def save_images(counter, gray):
 def save_pose_to_file(filename, robot_pos, robot_orient, camera_rvec, camera_tvec, pose_idx):
     with open(filename, 'a') as f:
         f.write(f"# Pose {pose_idx}\n")
-        f.write("robot_pos: " + " ".join([str(x) for x in robot_pos]) + "\n")
-        f.write("robot_orient: " + " ".join([str(x) for x in robot_orient]) + "\n")
+        f.write("robot_pos_orient: " + " ".join([str(x) for x in robot_pos]) + "\n")
+        f.write("robot_joints: " + " ".join([str(x) for x in robot_orient]) + "\n")
         f.write("camera_rvec: " + " ".join([str(x) for x in camera_rvec]) + "\n")
         f.write("camera_tvec: " + " ".join([str(x) for x in camera_tvec]) + "\n\n")
 

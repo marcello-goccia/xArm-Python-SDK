@@ -101,3 +101,48 @@ class Robot:
         T[0:3, 3]   = [x, y, z]
 
         return T
+
+    # def rotation_from_euler(self, roll, pitch, yaw):
+    #     """
+    #     Restituisce la matrice di rotazione 3×3 corrispondente
+    #     alla sequenza Z (yaw) → Y (pitch) → X (roll).
+    #     """
+    #     Rx = np.array([
+    #         [1,             0,              0],
+    #         [0, np.cos(roll), -np.sin(roll)],
+    #         [0, np.sin(roll),  np.cos(roll)]
+    #     ])
+    #     Ry = np.array([
+    #         [ np.cos(pitch), 0, np.sin(pitch)],
+    #         [             0, 1,             0],
+    #         [-np.sin(pitch), 0, np.cos(pitch)]
+    #     ])
+    #     Rz = np.array([
+    #         [np.cos(yaw), -np.sin(yaw), 0],
+    #         [np.sin(yaw),  np.cos(yaw), 0],
+    #         [          0,            0, 1]
+    #     ])
+    #     return Rz @ Ry @ Rx
+    #
+    # def get_T_base2gripper(self, pos_current):
+    #     """
+    #     costuisce la trasformazione omogenea 4×4 della pinza
+    #     (gripper) rispetto alla base,
+    #     partendo da pos_current = [x, y, z, roll, pitch, yaw],
+    #     con roll/pitch/yaw in gradi.
+    #     """
+    #     # 1) Estrai traslazione e angoli
+    #     x, y, z, roll_deg, pitch_deg, yaw_deg = pos_current
+    #
+    #     # 2) Converti in radianti
+    #     roll, pitch, yaw = np.deg2rad([roll_deg, pitch_deg, yaw_deg])
+    #
+    #     # 3) Crea la matrice di rotazione base→gripper
+    #     R_base2gripper = self.rotation_from_euler(roll, pitch, yaw)
+    #
+    #     # 4) Incorpora rotazione e traslazione in una 4×4
+    #     T = np.eye(4)
+    #     T[:3, :3] = R_base2gripper
+    #     T[:3,  3] = [x, y, z]
+    #
+    #     return T
